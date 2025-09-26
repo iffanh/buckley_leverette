@@ -85,10 +85,15 @@ class BuckleyLeverette(object):
             
         return list_npv
             
-    def stage_cost(self, Swk, qtk):
+    def stage_cost(self, Swk, qtk, qtk_prev=None, alpha=0.1):
         
         fwN = self.fractional_flow(Swk[-1])
-        cost = -qtk[-1]*((1-fwN)*self.ro - self.rwp*fwN - self.rwi)
+        # cost = -qtk[-1]*((1-fwN)*self.ro - self.rwp*fwN - self.rwi)
+        # cost = -qtk*((1-fwN)*self.ro - self.rwp*fwN - self.rwi)
+        cost = -qtk*((1-fwN)*self.ro - self.rwp*fwN - ppf_approx(qtk))
+        
+        if qtk_prev is not None:
+            cost += alpha * ca.fabs(qtk - qtk_prev)
         
         return cost
         
@@ -106,3 +111,6 @@ def casadi_roll_left(arr):
 
 def casadi_clip(arr, min_val, max_val):
     return ca.fmin(ca.fmax(arr, min_val), max_val)
+
+def ppf_approx(u, alpha=0.05): # polynomial approximation of the energy price function due to water injection by pumps
+    return (3.15 - (- 1.1 * u**3 + 0.4 * u**2 + 2.0 * u))*alpha

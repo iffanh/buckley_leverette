@@ -6,10 +6,12 @@ import casadi as ca
 class Ocp:
     x: ca.SX  # state symbol
     u: ca.SX  # control symbol
+    u_prev: ca.SX  # previous control symbol for control change penalty
     N: int  # OCP horizon
     dyn_expr: ca.SX  # dynamics expression
     stage_cost_expr: ca.SX  # stage cost expression
     stage_constr_expr: ca.SX = ca.SX()  # stage constraint expression
+    stage_constr_init: ca.SX = ca.SX()  # initial condition for stage constraint
     stage_constr_lb: np.ndarray = field(default_factory=lambda: np.array([]))   # lower bound on stage constraint
     stage_constr_ub: np.ndarray = field(default_factory=lambda: np.array([]))   # upper bound on stage constraint
 
@@ -34,7 +36,7 @@ class SolverOcp():
 
         # dynamics and cost functions
         dyn_func = ca.Function("dyn", [self.problem.x, self.problem.u], [self.problem.dyn_expr])
-        stage_cost_func = ca.Function("stage_cost", [self.problem.x, self.problem.u], [self.problem.stage_cost_expr])
+        stage_cost_func = ca.Function("stage_cost", [self.problem.x, self.problem.u, self.problem.u_prev], [self.problem.stage_cost_expr])
         stage_constr_func = ca.Function("stage_constr", [self.problem.x, self.problem.u], [self.problem.stage_constr_expr])
 
         # build OCP
@@ -57,7 +59,10 @@ class SolverOcp():
         # iterate through stages
         for k in range(self.problem.N):
             # TODO: stage cost
-            obj += stage_cost_func(X[:,k], U[:,k])*0.99**(k)
+            if k == 0:
+                obj += stage_cost_func(X[:,k], U[:,k], U[:,k])*0.99**(k)  # no previous control, so we pass current control as previous
+            else:
+                obj += stage_cost_func(X[:,k], U[:,k], U[:,k-1])*0.99**(k)
 
             # TODO add dynamics constraint
             constr.append(dyn_func(X[:,k], U[:,k]) - X[:,k+1])
@@ -65,9 +70,15 @@ class SolverOcp():
             constr_ub.append(np.zeros((self.problem.nx,)))
 
             # TODO: stage constraints
-            constr.append(stage_constr_func(X[:,k], U[:,k]))
-            constr_lb.append(self.problem.stage_constr_lb)
-            constr_ub.append(self.problem.stage_constr_ub)
+            
+            if k == 0:
+                constr.append(stage_constr_func(X[:,k], U[:,k]))
+                constr_lb.append([self.problem.stage_constr_init])
+                constr_ub.append([self.problem.stage_constr_init])
+            else:
+                constr.append(stage_constr_func(X[:,k], U[:,k]))
+                constr_lb.append(self.problem.stage_constr_lb)
+                constr_ub.append(self.problem.stage_constr_ub)
 
         # # TODO: terminal cost
         # obj += terminal_cost_func(X[:,self.problem.N])
@@ -107,4 +118,5 @@ class SolverOcp():
         X: state trajectory of shape (nx, N+1)
         U: control trajectory of shape (nu, N)
         '''
+        self._init_control = [U[0]]  # initial control for initial constraint
         self._init_guess = self._traj_to_vec(X, U).full().flatten()

@@ -9,6 +9,7 @@ from buckley_leverette import BuckleyLeverette
 class BLParamsMpc:
     umin: np.ndarray = field(default_factory=lambda: np.array([0.8])) # lower bound on u
     umax: np.ndarray = field(default_factory=lambda: np.array([1.2])) # upper bound on u
+    uinit: float = 1.0  # initial condition for control
     
     length: float = 1.00
     Swc: float = 0.2  # connate water saturation
@@ -60,24 +61,29 @@ def setup_bl_ocp(params_mpc: BLParamsMpc) -> Ocp:
     # controls
     # u = ca.SX.sym("q", params_mpc.N)  # injection rate
     u = ca.SX.sym("q")  # injection rate
+    u_prev = ca.SX.sym("q_prev")  # previous injection rate for control change penalty
 
     # dynamics
     f_discrete = bl.simulate_at_k(x, u)
     
     # TODO: stage cost and terminal cost
-    stage_cost = bl.stage_cost(x, u)
+    # stage_cost = bl.stage_cost(x, u, qtk_prev=u_prev, alpha=0.001)
+    stage_cost = bl.stage_cost(x, u, qtk_prev=u_prev, alpha=0.0)
 
     stage_constr = u + 0 
     stage_constr_lb = params_mpc.umin
     stage_constr_ub = params_mpc.umax
+    stage_constr_init = params_mpc.uinit
 
     ocp = Ocp(
         x = x,
         u = u,
+        u_prev = u_prev,
         N = params_mpc.N,
         dyn_expr = f_discrete,
         stage_cost_expr = stage_cost,
         stage_constr_expr = stage_constr,
+        stage_constr_init = stage_constr_init,
         stage_constr_lb = stage_constr_lb,
         stage_constr_ub = stage_constr_ub,
     )
