@@ -82,7 +82,7 @@ class BuckleyLeverette(object):
     def stage_cost(self, Swk, qtk):
         
         ro = 1.0
-        rwp = 0.1
+        rwp = 0.01
         rwi = 0.1
         
         fwN = self.fractional_flow(Swk[-1])

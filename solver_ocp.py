@@ -24,13 +24,14 @@ class Ocp:
 
 
 class SolverOcp():
-    def __init__(self, problem: Ocp):
+    def __init__(self, problem: Ocp, itk: int = 0):
         self.problem = problem
+        self.itk = itk  # iteration counter
         self._build_solver()
         self.success = False
         self._sol = None
         self._init_guess = 0
-
+    
 
     def _build_solver(self) -> None:
 
@@ -60,17 +61,16 @@ class SolverOcp():
         for k in range(self.problem.N):
             # TODO: stage cost
             if k == 0:
-                obj += stage_cost_func(X[:,k], U[:,k], U[:,k])*0.99**(k)  # no previous control, so we pass current control as previous
+                obj += stage_cost_func(X[:,k], U[:,k], U[:,k])*0.99**(k + self.itk)  # no previous control, so we pass current control as previous
             else:
-                obj += stage_cost_func(X[:,k], U[:,k], U[:,k-1])*0.99**(k)
-
+                obj += stage_cost_func(X[:,k], U[:,k], U[:,k-1])*0.99**(k + self.itk)
+                
             # TODO add dynamics constraint
             constr.append(dyn_func(X[:,k], U[:,k]) - X[:,k+1])
             constr_lb.append(np.zeros((self.problem.nx,)))
             constr_ub.append(np.zeros((self.problem.nx,)))
 
             # TODO: stage constraints
-            
             if k == 0:
                 constr.append(stage_constr_func(X[:,k], U[:,k]))
                 constr_lb.append([self.problem.stage_constr_init])
@@ -86,7 +86,8 @@ class SolverOcp():
         constr = ca.veccat(*constr)
 
         nlp = {"x": decvar, "f": obj, "g": constr}
-        self._solver = ca.nlpsol("solver", "ipopt", nlp)
+        opts = {'ipopt.print_level':0, 'print_time':0}
+        self._solver = ca.nlpsol("solver", "ipopt", nlp, opts)
         self._decvar = decvar
         self._X = X
         self._U = U

@@ -16,8 +16,8 @@ class BuckleyLeverette(object):
         self.total_time = total_time
         self.nt = int(np.floor(total_time/dt))
         self.t = np.linspace(0, total_time, self.nt)
-        self.Swinit = np.ones(nx) * Swc  # initial water saturation
-        self.Swinit[0] = 1.0  # inject water at left boundary
+        # self.Swinit = np.ones(nx) * Swc  # initial water saturation
+        # self.Swinit[0] = 1.0  # inject water at left boundary
         
         self.ro = ro
         self.rwp = rwp
