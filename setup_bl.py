@@ -19,7 +19,30 @@ class BLParamsMpc:
     
     N: int = 100
     dt: float = 0.03
-    total_time: float = N*dt
+    time_window: float = N*dt
+    total_time: float = 3
+    nx: int = 25 # number of spatial discretization points
+    
+    ro: float = 1.0
+    rwp: float = 0.01
+    rwi: float = 0.1
+
+@dataclass
+class BLParamsMpcShort:
+    umin: np.ndarray = field(default_factory=lambda: np.array([0.8])) # lower bound on u
+    umax: np.ndarray = field(default_factory=lambda: np.array([1.2])) # upper bound on u
+    uinit: float = 1.0  # initial condition for control
+    
+    length: float = 1.00
+    Swc: float = 0.2  # connate water saturation
+    Sor: float = 0.2  # residual oil saturation
+    mu_w: float = 1.0
+    mu_o: float = 5.0
+    
+    N: int = 50
+    dt: float = 0.03
+    time_window: float = N*dt
+    total_time: float = 3
     nx: int = 25 # number of spatial discretization points
     
     ro: float = 1.0
@@ -36,7 +59,7 @@ def setup_bl_ocp(params_mpc: BLParamsMpc) -> Ocp:
     mu_o = params_mpc.mu_o
     
     dt = params_mpc.dt
-    total_time = params_mpc.total_time
+    time_window = params_mpc.time_window
     nx = params_mpc.nx  # number of spatial discretization points
     
     ro = params_mpc.ro
@@ -50,7 +73,7 @@ def setup_bl_ocp(params_mpc: BLParamsMpc) -> Ocp:
                           mu_w=mu_w, 
                           mu_o=mu_o, 
                           dt=dt, 
-                          total_time=total_time,
+                          total_time=time_window,
                           ro=ro,
                           rwp=rwp,
                           rwi=rwi)

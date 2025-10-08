@@ -34,7 +34,7 @@ class BuckleyLeverette(object):
     
     def fractional_flow(self, Sw, a=20.0, b=5.0):
         fw = 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*Sw))
-        return fw
+        return ca.vertcat(fw)
 
     def simulate(self, Sw, qt):
         Sw_end = Sw + 0
@@ -45,7 +45,7 @@ class BuckleyLeverette(object):
             
     def simulate_at_k(self, Sw, qtk):
         
-        Sw_end = Sw + 0
+        Sw_end = ca.vertcat(Sw) + 0
         fw = self.fractional_flow(Sw_end)
         fw_right = casadi_roll_left(fw)
         
@@ -53,7 +53,6 @@ class BuckleyLeverette(object):
         dSw = -(self.dt / self.dx) * qtk *(fw_right - fw)
         Sw_end[1:] += dSw[0:-1]
         Sw_end = casadi_clip(Sw_end, self.Swc, 1.0)
-        
         return Sw_end
             
     def simulate_w_plot(self, Sw, qt):
@@ -112,5 +111,5 @@ def casadi_roll_left(arr):
 def casadi_clip(arr, min_val, max_val):
     return ca.fmin(ca.fmax(arr, min_val), max_val)
 
-def ppf_approx(u, alpha=0.05): # polynomial approximation of the energy price function due to water injection by pumps
+def ppf_approx(u, alpha=0.055): # polynomial approximation of the energy price function due to water injection by pumps
     return (3.15 - (- 1.1 * u**3 + 0.4 * u**2 + 2.0 * u))*alpha

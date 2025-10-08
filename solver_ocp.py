@@ -104,7 +104,7 @@ class SolverOcp():
 
         # TODO: set initial state constraint
         # (we can set constraints which are directly on a single variable (box constraints) via lbx, ubx)
-        # (We set an equality constraint by using an identical lower and upper bound)        
+        # (We set an equality constraint by using an identical lower and upper bound)    
         self._lbx[:self.problem.nx] = x0
         self._ubx[:self.problem.nx] = x0
 
