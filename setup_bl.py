@@ -26,6 +26,10 @@ class BLParamsMpc:
     ro: float = 1.0
     rwp: float = 0.01
     rwi: float = 0.1
+    
+    # fractional flow parameters
+    a: float = 20.0
+    b: float = 5.0
 
 @dataclass
 class BLParamsMpcShort:
@@ -48,6 +52,10 @@ class BLParamsMpcShort:
     ro: float = 1.0
     rwp: float = 0.01
     rwi: float = 0.1
+    
+    # fractional flow parameters
+    a: float = 20.0
+    b: float = 5.0
 
 def setup_bl_ocp(params_mpc: BLParamsMpc) -> Ocp:
 
@@ -65,6 +73,9 @@ def setup_bl_ocp(params_mpc: BLParamsMpc) -> Ocp:
     ro = params_mpc.ro
     rwp = params_mpc.rwp
     rwi = params_mpc.rwi
+    
+    a = params_mpc.a
+    b = params_mpc.b
     
     bl = BuckleyLeverette(nx=nx, 
                           length=length, 
@@ -87,7 +98,7 @@ def setup_bl_ocp(params_mpc: BLParamsMpc) -> Ocp:
     u_prev = ca.SX.sym("q_prev")  # previous injection rate for control change penalty
 
     # dynamics
-    f_discrete = bl.simulate_at_k(x, u)
+    f_discrete = bl.simulate_at_k(x, u, a, b)
     
     # TODO: stage cost and terminal cost
     # stage_cost = bl.stage_cost(x, u, qtk_prev=u_prev, alpha=0.001)

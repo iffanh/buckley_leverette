@@ -36,17 +36,17 @@ class BuckleyLeverette(object):
         fw = 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*Sw))
         return ca.vertcat(fw)
 
-    def simulate(self, Sw, qt):
+    def simulate(self, Sw, qt, a, b):
         Sw_end = Sw + 0
         nsteps = int(self.total_time / self.dt)
         for i in range(nsteps):
-            Sw_end = self.simulate_at_k(Sw_end, qt[i])
+            Sw_end = self.simulate_at_k(Sw_end, qt[i], a, b)
         return Sw_end
             
-    def simulate_at_k(self, Sw, qtk):
+    def simulate_at_k(self, Sw, qtk, a, b):
         
         Sw_end = ca.vertcat(Sw) + 0
-        fw = self.fractional_flow(Sw_end)
+        fw = self.fractional_flow(Sw_end, a, b)
         fw_right = casadi_roll_left(fw)
         
         # Upwind scheme
