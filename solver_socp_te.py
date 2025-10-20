@@ -4,18 +4,19 @@ import casadi as ca
 
 @dataclass
 class Socp:
+    bl: object
     x: ca.SX  # state symbol
     u: ca.SX  # control symbol
-    u_prev: ca.SX  # previous control symbol for control change penalty
     Ne: int # number of perturbation
-    N: int  # OCP horizon
-    dyn_expr: ca.SX  # dynamics expression
+    N_mpc: int  # OCP horizon
+    # dyn_expr: ca.SX
     stage_cost_expr: ca.SX  # stage cost expression
     stage_constr_expr: ca.SX = ca.SX()  # stage constraint expression
     stage_constr_init: ca.SX = ca.SX()  # initial condition for stage constraint
     stage_constr_lb: np.ndarray = field(default_factory=lambda: np.array([]))   # lower bound on stage constraint
     stage_constr_ub: np.ndarray = field(default_factory=lambda: np.array([]))   # upper bound on stage constraint
-
+    
+    
     @property
     def nx(self) -> int:
         return self.x.shape[0]
@@ -37,16 +38,17 @@ class SolverOcp():
     def _build_solver(self) -> None:
 
         # dynamics and cost functions
-        dyn_func = ca.Function("dyn", [self.problem.x, self.problem.u], [*self.problem.dyn_expr])
-        stage_cost_func = ca.Function("stage_cost", [self.problem.x, self.problem.u, self.problem.u_prev], [*self.problem.stage_cost_expr])
+        # dyn_func = ca.Function("dyn", [self.problem.x, self.problem.u], [*self.problem.dyn_expr])
+        stage_cost_func = ca.Function("stage_cost", [self.problem.x, self.problem.u], [*self.problem.stage_cost_expr])
         stage_constr_func = ca.Function("stage_constr", [self.problem.x, self.problem.u], [self.problem.stage_constr_expr])
 
         # build OCP
         # decision variables
-        X = ca.SX.sym("X", self.problem.nx, self.problem.N+1)
-        U = ca.SX.sym("U", self.problem.nu, self.problem.N)
+        X = ca.SX.sym("X", self.problem.nx)
+        U = ca.SX.sym("U", self.problem.nu)
         # vector of all decision variables ordered as [x0, u0, x1, u1, ..., xN]
-        decvar = ca.veccat(X[:,0], ca.vertcat(U, X[:,1:]))
+        # decvar = ca.veccat(X[:,0], ca.vertcat(U, X[:,1:]))
+        decvar = ca.veccat(X, U)
         # to extract state and control trajectories in nice shape from decvar
         self._extract_traj = ca.Function("extract_traj", [decvar], [X, U])
         self._traj_to_vec = ca.Function("traj_to_vec", [X, U], [decvar])
@@ -58,36 +60,26 @@ class SolverOcp():
         constr_lb = []    # lower bounds on constraints
         constr_ub = []    # upper bounds on constraints
 
-        # iterate through stages
-        for k in range(self.problem.N):
-                
-            if k == 0:
-                costs = stage_cost_func(X[:,k], U[:,k], U[:,k])
-                  # no previous control, so we pass current control as previous
-            else:
-                costs = stage_cost_func(X[:,k], U[:,k], U[:,k-1])
-                
-            obj += ca.sum(ca.vertcat(*[cost*0.99**(k + self.itk) for cost in costs]))/self.problem.Ne
-                
-            # TODO add dynamics constraint
-            constr.append(ca.vertcat(*dyn_func(X[:,k], U[:,k])) - X[:,k+1])
-            constr_lb.append(np.zeros((self.problem.nx,)))
-            constr_ub.append(np.zeros((self.problem.nx,)))
+        costs = stage_cost_func(X, U)
             
-            # TODO: stage constraints
-            if k == 0:
-                constr.append(stage_constr_func(X[:,k], U[:,k]))
-                constr_lb.append([self.problem.stage_constr_init])
-                constr_ub.append([self.problem.stage_constr_init])
-            else:
-                constr.append(stage_constr_func(X[:,k], U[:,k]))
-                constr_lb.append(self.problem.stage_constr_lb)
-                constr_ub.append(self.problem.stage_constr_ub)
+        obj += ca.sum(ca.vertcat(*[cost*0.99**(self.itk) for cost in costs]))/self.problem.Ne
+            
+        # TODO add dynamics constraint
+        # constr.append(ca.vertcat(*dyn_func(X[:,k], U[:,k])) - X[:,k+1])
+        # constr_lb.append(np.zeros((self.problem.nx,)))
+        # constr_ub.append(np.zeros((self.problem.nx,)))
+        
+        # TODO: stage constraints
+        constr.append(stage_constr_func(X, U))
+        constr_lb.append(self.problem.stage_constr_lb)
+        constr_ub.append(self.problem.stage_constr_ub)
 
         constr = ca.veccat(*constr)
 
+        
         nlp = {"x": decvar, "f": obj, "g": constr}
         opts = {'ipopt.print_level':0, 'print_time':0}
+        
         self._solver = ca.nlpsol("solver", "ipopt", nlp, opts)
         self._decvar = decvar
         self._X = X

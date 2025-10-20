@@ -84,15 +84,55 @@ class BuckleyLeverette(object):
             
         return list_npv
             
-    def stage_cost(self, Swk, qtk, qtk_prev=None, alpha=0.1):
+    def stage_cost(self, Sw, qt0, qtk, qocp, itk, N_mpc, Nt, a, b):
         
+        ## to calculate the stage cost at time itk, 
+        ## we need to simulate the state from time 0 to itk using the previous solutions from MPC
+        ## then simulate the state from itk to itk+n using the current control
+        ## then simulate the state from itk+n to the total_time using the terminal control found by OCP 
+        
+        # Swinit : initial state at time 0
+        # qt0 : control input from time 0 to itk-1 (previous solutions from MPC) 
+        # qtk : a vector of control inputs from time itk to itk+n (variable to solve in MPC)
+        # qocp : a vector of control inputs from time itk+n to total time (solutions from OCP)
+        # itk : current iterations, also the stage of the MPC
+        # N_mpc : the window length of the MPC
+        # N : the total window length of the OCP
+        
+        cost = 0.0
+        
+        q_seq = []
+            
+        # print(f"initial cost", cost)
+        
+        for i in range(itk):
+            Sw = self.simulate_at_k(Sw, qt0[i], a, b) # we use qtk[i] as the control input from time 0 to itk-1
+            cost += self._stage_cost(Sw, qt0[i])*(0.99**(i) )
+            q_seq.append(qt0[i])    
+            
+        for i in range(N_mpc):
+            if itk + i < Nt:
+                Sw = self.simulate_at_k(Sw, qtk[i], a, b) # we use qtk[i] as the control input from time itk to itk+N-1
+                cost += self._stage_cost(Sw, qtk[i])*(0.99**(i+itk))
+                q_seq.append(qtk[i])
+                
+        for i in range(Nt - (itk + N_mpc)):
+            if itk + N_mpc + i < Nt:
+                Sw = self.simulate_at_k(Sw, qocp[i], a, b) # we use qocp[i] as the control input from time itk+N to total_time
+                cost += self._stage_cost(Sw, qocp[i])*(0.99**(i+itk+N_mpc))
+                q_seq.append(qocp[i])
+                
+        print(f"Control sequence used in cost calculation: {q_seq}")
+                
+        return cost
+    
+    def _stage_cost(self, Swk, qtk):
+    
         fwN = self.fractional_flow(Swk[-1])
         cost = -qtk*((1-fwN)*self.ro - self.rwp*fwN - ppf_approx(qtk))
         
-        if qtk_prev is not None:
-            cost += alpha * ca.fabs(qtk - qtk_prev)
-        
         return cost
+
         
     def plot(self):
         plt.plot(self.x, self.Sw)
