@@ -111,18 +111,6 @@ def setup_sbl_ocp(params_mpc: BLParamsSmpcShort, qmpc, qocp) -> Socp:
     u = ca.SX.sym("q", N_mpc)  # injection rate
 
     # simulate the state up until the iteration itk
-
-
-    # # dynamics
-    # f_discrete = []
-    # for i, (a, b) in enumerate(zip(aw, bw)):
-    #     f_discrete.append(bl.simulate_at_k(x[i*nx:(i+1)*nx], u, a, b))
-    
-    # f_discrete = ca.SX(*f_discrete)
-    # print(f_discrete)
-    
-    # TODO: stage cost and terminal cost
-    # stage_cost = bl.stage_cost(x, u, qtk_prev=u_prev, alpha=0.001)
     
     stage_cost = []
     for i in range(Ne):
@@ -133,8 +121,8 @@ def setup_sbl_ocp(params_mpc: BLParamsSmpcShort, qmpc, qocp) -> Socp:
                                            itk=itk,
                                            N_mpc=N_mpc,
                                            Nt=Nt, 
-                                           a=aw[i], 
-                                           b=bw[i]))
+                                           a=aw[:,i], 
+                                           b=bw[:,i]))
 
     stage_constr = u + 0 
     stage_constr_lb = params_mpc.umin
