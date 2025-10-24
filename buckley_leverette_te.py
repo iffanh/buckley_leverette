@@ -106,22 +106,24 @@ class BuckleyLeverette(object):
         # print(f"initial cost", cost)
         
         for i in range(itk):
-            Sw = self.simulate_at_k(Sw, qt0[i], a, b) # we use qtk[i] as the control input from time 0 to itk-1
             cost += self._stage_cost(Sw, qt0[i])*(0.99**(i) )
+            Sw = self.simulate_at_k(Sw, qt0[i], a, b) # we use qtk[i] as the control input from time 0 to itk-1
+            # cost += self._stage_cost(Sw, qt0[i])*(0.99**(i) )
             q_seq.append(qt0[i])    
             
         for i in range(N_mpc):
             if itk + i < Nt:
-                Sw = self.simulate_at_k(Sw, qtk[i], a, b) # we use qtk[i] as the control input from time itk to itk+N-1
                 cost += self._stage_cost(Sw, qtk[i])*(0.99**(i+itk))
+                Sw = self.simulate_at_k(Sw, qtk[i], a, b) # we use qtk[i] as the control input from time itk to itk+N-1
+                # cost += self._stage_cost(Sw, qtk[i])*(0.99**(i+itk))
                 q_seq.append(qtk[i])
                 
         for i in range(Nt - (itk + N_mpc)):
             if itk + N_mpc + i < Nt:
-                Sw = self.simulate_at_k(Sw, qocp[i], a, b) # we use qocp[i] as the control input from time itk+N to total_time
                 cost += self._stage_cost(Sw, qocp[i])*(0.99**(i+itk+N_mpc))
+                Sw = self.simulate_at_k(Sw, qocp[i], a, b) # we use qocp[i] as the control input from time itk+N to total_time
                 q_seq.append(qocp[i])
-                
+        
         print(f"Control sequence used in cost calculation: {q_seq}")
                 
         return cost
