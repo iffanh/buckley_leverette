@@ -109,5 +109,5 @@ def casadi_roll_left(arr):
 def casadi_clip(arr, min_val, max_val):
     return ca.fmin(ca.fmax(arr, min_val), max_val)
 
-def ppf_approx(u, alpha=0.055): # polynomial approximation of the energy price function due to water injection by pumps
+def ppf_approx(u, alpha=0.155): # polynomial approximation of the energy price function due to water injection by pumps
     return (3.15 - (- 1.1 * u**3 + 0.4 * u**2 + 2.0 * u))*alpha
