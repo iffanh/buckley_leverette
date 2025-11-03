@@ -6,7 +6,7 @@ class BuckleyLeverette(object):
     def __init__(self, nx=100, length=1.0, Swc=0.2, Sor=0.2, mu_w=1.0, mu_o=5.0, dt=0.01, total_time=3.0, ro=1.0, rwp=0.1, rwi=0.1):
         self.nx = nx
         self.length = length
-        self.dx = length / (nx - 1)
+        self.dx = length / nx
         self.x = np.linspace(0, length, nx)
         self.Swc = Swc  # connate water saturation
         self.Sor = Sor  # residual oil saturation
@@ -105,24 +105,78 @@ class BuckleyLeverette(object):
             
         # print(f"initial cost", cost)
         
+        gamma = 0.99
+        
         for i in range(itk):
-            cost += self._stage_cost(Sw, qt0[i])*(0.99**(i) )
+            cost += self._stage_cost(Sw, qt0[i])*(gamma**(i) )
+            # cost += self._stage_cost(Sw, qt0[i])*(1.0**(i) )
             Sw = self.simulate_at_k(Sw, qt0[i], a, b) # we use qtk[i] as the control input from time 0 to itk-1
             # cost += self._stage_cost(Sw, qt0[i])*(0.99**(i) )
             q_seq.append(qt0[i])    
             
         for i in range(N_mpc):
             if itk + i < Nt:
-                cost += self._stage_cost(Sw, qtk[i])*(0.99**(i+itk))
+                cost += self._stage_cost(Sw, qtk[i])*(gamma**(i+itk))
+                # cost += self._stage_cost(Sw, qtk[i])*(1.0**(i+itk))
                 Sw = self.simulate_at_k(Sw, qtk[i], a, b) # we use qtk[i] as the control input from time itk to itk+N-1
                 # cost += self._stage_cost(Sw, qtk[i])*(0.99**(i+itk))
                 q_seq.append(qtk[i])
                 
         for i in range(Nt - (itk + N_mpc)):
             if itk + N_mpc + i < Nt:
-                cost += self._stage_cost(Sw, qocp[i])*(0.99**(i+itk+N_mpc))
+                cost += self._stage_cost(Sw, qocp[i])*(gamma**(i+itk+N_mpc))
+                # cost += self._stage_cost(Sw, qocp[i])*(1.0**(i+itk+N_mpc))
                 Sw = self.simulate_at_k(Sw, qocp[i], a, b) # we use qocp[i] as the control input from time itk+N to total_time
                 q_seq.append(qocp[i])
+        
+        print(f"Control sequence used in cost calculation: {q_seq}")
+                
+        return cost
+    
+    def stage_cost_without_terminal(self, Sw, qt0, qtk, qocp, itk, N_mpc, Nt, a, b):
+        
+        ## to calculate the stage cost at time itk, 
+        ## we need to simulate the state from time 0 to itk using the previous solutions from MPC
+        ## then simulate the state from itk to itk+n using the current control
+        ## then simulate the state from itk+n to the total_time using the terminal control found by OCP 
+        
+        # Swinit : initial state at time 0
+        # qt0 : control input from time 0 to itk-1 (previous solutions from MPC) 
+        # qtk : a vector of control inputs from time itk to itk+n (variable to solve in MPC)
+        # qocp : a vector of control inputs from time itk+n to total time (solutions from OCP)
+        # itk : current iterations, also the stage of the MPC
+        # N_mpc : the window length of the MPC
+        # N : the total window length of the OCP
+        
+        cost = 0.0
+        
+        q_seq = []
+            
+        # print(f"initial cost", cost)
+        
+        gamma = 0.99
+        
+        for i in range(itk):
+            cost += self._stage_cost(Sw, qt0[i])*(gamma**(i) )
+            # cost += self._stage_cost(Sw, qt0[i])*(1.0**(i) )
+            Sw = self.simulate_at_k(Sw, qt0[i], a, b) # we use qtk[i] as the control input from time 0 to itk-1
+            # cost += self._stage_cost(Sw, qt0[i])*(0.99**(i) )
+            q_seq.append(qt0[i])    
+            
+        for i in range(N_mpc):
+            if itk + i < Nt:
+                cost += self._stage_cost(Sw, qtk[i])*(gamma**(i+itk))
+                # cost += self._stage_cost(Sw, qtk[i])*(1.0**(i+itk))
+                Sw = self.simulate_at_k(Sw, qtk[i], a, b) # we use qtk[i] as the control input from time itk to itk+N-1
+                # cost += self._stage_cost(Sw, qtk[i])*(0.99**(i+itk))
+                q_seq.append(qtk[i])
+                
+        # for i in range(Nt - (itk + N_mpc)):
+        #     if itk + N_mpc + i < Nt:
+        #         cost += self._stage_cost(Sw, qocp[i])*(gamma**(i+itk+N_mpc))
+        #         # cost += self._stage_cost(Sw, qocp[i])*(1.0**(i+itk+N_mpc))
+        #         Sw = self.simulate_at_k(Sw, qocp[i], a, b) # we use qocp[i] as the control input from time itk+N to total_time
+        #         q_seq.append(qocp[i])
         
         print(f"Control sequence used in cost calculation: {q_seq}")
                 
@@ -151,5 +205,11 @@ def casadi_roll_left(arr):
 def casadi_clip(arr, min_val, max_val):
     return ca.fmin(ca.fmax(arr, min_val), max_val)
 
-def ppf_approx(u, alpha=0.055): # polynomial approximation of the energy price function due to water injection by pumps
-    return (3.15 - (- 1.1 * u**3 + 0.4 * u**2 + 2.0 * u))*alpha
+# def ppf_approx(u, alpha=0.10): # polynomial approximation of the energy price function due to water injection by pumps
+#     return (3.15 - (- 1.1 * u**3 + 0.4 * u**2 + 2.0 * u))*alpha
+
+# def ppf_approx(u, alpha=0.15): # polynomial approximation of the energy price function due to water injection by pumps
+#     return (3.15 - (- 3.1 * u**3 - 0.4 * u**2 + 1.5 * u))*alpha
+
+def ppf_approx(u, alpha=0.025): # polynomial approximation of the energy price function due to water injection by pumps
+    return (3.15 - (- 3.1 * u**3 + 3.4 * u**2 + 1.5 * u))*alpha
