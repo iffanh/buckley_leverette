@@ -25,7 +25,7 @@ class BLParamsSmpcShort:
     nx: int = 25 # number of spatial discretization points
     
     ro: float = 1.0
-    rwp: float = 0.7
+    rwp: float = 0.4
     rwi: float = 0.1
     
     # Ne: int = 10 # number of perturbation
@@ -60,7 +60,7 @@ class BLParamsTrue:
     nx: int = 25 # number of spatial discretization points
     
     ro: float = 1.0
-    rwp: float = 0.7
+    rwp: float = 0.4
     rwi: float = 0.1
         
     Ne: int = 1 # number of perturbation
