@@ -148,3 +148,82 @@ def setup_sbl_ocp(params_mpc: BLParamsSmpcShort, qmpc, qocp) -> Socp:
 
     return ocp
 
+def setup_sbl_ocp_without_terminal(params_mpc: BLParamsSmpcShort, qmpc, qocp) -> Socp:
+
+    # # model parameter values
+    length = params_mpc.length
+    Swc = params_mpc.Swc  # connate water saturation
+    Sor = params_mpc.Sor  # residual oil saturation
+    mu_w = params_mpc.mu_w
+    mu_o = params_mpc.mu_o
+    
+    N_mpc = params_mpc.N_mpc
+    dt = params_mpc.dt
+    time_window = params_mpc.time_window
+    total_time = params_mpc.total_time
+    Nt = params_mpc.Nt
+    nx = params_mpc.nx  # number of spatial discretization points
+    
+    ro = params_mpc.ro
+    rwp = params_mpc.rwp
+    rwi = params_mpc.rwi
+    
+    Ne = params_mpc.Ne
+    aw = params_mpc.aw
+    bw = params_mpc.bw
+    
+    itk = len(qmpc)
+    
+    bl = BuckleyLeverette(nx=nx, 
+                          length=length, 
+                          Swc=Swc, 
+                          Sor=Sor, 
+                          mu_w=mu_w, 
+                          mu_o=mu_o, 
+                          dt=dt, 
+                          total_time=total_time,
+                          ro=ro,
+                          rwp=rwp,
+                          rwi=rwi)
+
+    # states
+    x = ca.SX.sym("Sw", nx*Ne)  # water saturation profile along the 1D domain
+
+    # controls
+    # u = ca.SX.sym("q", params_mpc.N)  # injection rate
+    u = ca.SX.sym("q", N_mpc)  # injection rate
+
+    # simulate the state up until the iteration itk
+    
+    stage_cost = []
+    for i in range(Ne):
+        stage_cost.append(bl.stage_cost_without_terminal(Sw=x[i*nx:(i+1)*nx], 
+                                           qt0=qmpc,
+                                           qtk=u, 
+                                           qocp=qocp, 
+                                           itk=itk,
+                                           N_mpc=N_mpc,
+                                           Nt=Nt, 
+                                           a=aw, 
+                                           b=bw[:,i]))
+
+    stage_constr = u + 0 
+    stage_constr_lb = params_mpc.umin
+    stage_constr_ub = params_mpc.umax
+    stage_constr_init = params_mpc.uinit
+
+    ocp = Socp(
+        x = x,
+        u = u,
+        Ne = Ne,
+        N_mpc = params_mpc.N_mpc,
+        # dyn_expr = f_discrete,
+        stage_cost_expr = stage_cost,
+        stage_constr_expr = stage_constr,
+        stage_constr_init = stage_constr_init,
+        stage_constr_lb = stage_constr_lb,
+        stage_constr_ub = stage_constr_ub,
+        bl = bl
+    )
+
+    return ocp
