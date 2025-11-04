@@ -64,6 +64,7 @@ class SolverOcp():
             
         # obj += ca.sum(ca.vertcat(*[cost*0.99**(self.itk) for cost in costs]))/self.problem.Ne
         obj += ca.sum(ca.vertcat(*costs))/self.problem.Ne
+        # obj += ca.sum(ca.vertcat(costs))/self.problem.Ne
             
         # TODO add dynamics constraint
         # constr.append(ca.vertcat(*dyn_func(X[:,k], U[:,k])) - X[:,k+1])

@@ -20,12 +20,12 @@ class BLParamsSmpcShort:
     N_mpc: int = 10
     dt: float = 0.03
     time_window: float = N_mpc*dt
-    total_time: float = 3
-    Nt:int = 100 #int(total_time/dt)
+    total_time: float = 2.25
+    Nt:int = int(total_time/dt)
     nx: int = 25 # number of spatial discretization points
     
     ro: float = 1.0
-    rwp: float = 0.4
+    rwp: float = 0.6
     rwi: float = 0.1
     
     # Ne: int = 10 # number of perturbation
@@ -36,7 +36,7 @@ class BLParamsSmpcShort:
     Ne: int = 3 # number of perturbation
     # fractional flow parameters
     
-    aw: np.ndarray = field(default_factory=lambda: np.array([21.33475586, 22.34223509, 19.30977293]))
+    aw: float = 5.0
     bw: np.ndarray = field(default_factory=lambda: np.array([5.84997699, 5.8895987 , 4.62704057])) 
 
     
@@ -55,17 +55,17 @@ class BLParamsTrue:
     N_mpc: int = 10
     dt: float = 0.03
     time_window: float = N_mpc*dt
-    total_time: float = 3
+    total_time: float = 2.25
     Nt = int(total_time/dt)
     nx: int = 25 # number of spatial discretization points
     
     ro: float = 1.0
-    rwp: float = 0.4
+    rwp: float = 0.6
     rwi: float = 0.1
         
     Ne: int = 1 # number of perturbation
     # fractional flow parameters
-    aw: np.ndarray = field(default_factory=lambda: np.array([20.0]))
+    aw: float = 5.0
     bw: np.ndarray = field(default_factory=lambda: np.array([5.0]))
     
 def setup_sbl_ocp(params_mpc: BLParamsSmpcShort, qmpc, qocp) -> Socp:
@@ -124,7 +124,7 @@ def setup_sbl_ocp(params_mpc: BLParamsSmpcShort, qmpc, qocp) -> Socp:
                                            itk=itk,
                                            N_mpc=N_mpc,
                                            Nt=Nt, 
-                                           a=aw[:,i], 
+                                           a=aw, 
                                            b=bw[:,i]))
 
     stage_constr = u + 0 
