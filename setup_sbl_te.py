@@ -25,7 +25,7 @@ class BLParamsSmpcShort:
     nx: int = 25 # number of spatial discretization points
     
     ro: float = 1.0
-    rwp: float = 0.6
+    rwp: float = 0.1
     rwi: float = 0.1
     
     # Ne: int = 10 # number of perturbation
@@ -36,7 +36,7 @@ class BLParamsSmpcShort:
     Ne: int = 3 # number of perturbation
     # fractional flow parameters
     
-    aw: float = 5.0
+    aw: float = 100.0
     bw: np.ndarray = field(default_factory=lambda: np.array([5.84997699, 5.8895987 , 4.62704057])) 
 
     
@@ -60,12 +60,12 @@ class BLParamsTrue:
     nx: int = 25 # number of spatial discretization points
     
     ro: float = 1.0
-    rwp: float = 0.6
+    rwp: float = 0.1
     rwi: float = 0.1
         
     Ne: int = 1 # number of perturbation
     # fractional flow parameters
-    aw: float = 5.0
+    aw: float = 100.0
     bw: np.ndarray = field(default_factory=lambda: np.array([5.0]))
     
 def setup_sbl_ocp(params_mpc: BLParamsSmpcShort, qmpc, qocp) -> Socp:

@@ -32,9 +32,36 @@ class BuckleyLeverette(object):
         fw = krw / self.mu_w / (krw / self.mu_w + kro / self.mu_o)
         return fw
     
+    # def fractional_flow(self, Sw, a=20.0, b=5.0):
+    #     fw = 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*Sw))
+    #     return ca.vertcat(fw)
+    
+    def _fractional_flow(self, a=20.0, b=5.0):
+        
+        x = ca.SX.sym("x")
+        f0 = ca.Function("f0", [x], [0])
+        f1 = ca.Function("f1", [x], [1])
+        f2 = ca.Function("f2", [x], [1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*(x)))])
+        f_cond = ca.Function.conditional('f_cond', [f0, f1], f2)
+        return f_cond
+        # if Sw < 0.2:
+        #     return 0.0
+        # elif Sw > 0.8:
+        #     return 1.0
+        # else:
+        #     return 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*(Sw)))
+    
+    # def fractional_flow(self, Sw, a=20.0, b=5.0):
+    #     f_cond = self._fractional_flow
+        
+    #     fw = f_cond(Sw < 0.2)
+        
+    #     return ca.vertcat(fw)
+    
     def fractional_flow(self, Sw, a=20.0, b=5.0):
-        fw = 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*Sw))
+        fw = 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*((Sw-0.2)/0.6)))
         return ca.vertcat(fw)
+    
 
     def simulate(self, Sw, qt, a, b):
         Sw_end = Sw + 0
@@ -47,11 +74,15 @@ class BuckleyLeverette(object):
         
         Sw_end = ca.vertcat(Sw) + 0
         fw = self.fractional_flow(Sw_end, a, b)
-        fw_right = casadi_roll_left(fw)
+        fw_left = casadi_roll_left(fw)
+        
+        # print(f"fw = {fw}, fw_left = {fw_left}")
         
         # Upwind scheme
-        dSw = -(self.dt / self.dx) * qtk *(fw_right - fw)
-        Sw_end[1:] += dSw[0:-1]
+        dSw = -(self.dt / self.dx) * qtk *(fw - fw_left)*0.4
+        # Sw_end[1:] += dSw[0:-1]
+        Sw_end[1:] += dSw[1:]
+
         Sw_end = casadi_clip(Sw_end, self.Swc, 1.0)
         return Sw_end
             
@@ -186,6 +217,7 @@ class BuckleyLeverette(object):
     def _stage_cost(self, Swk, qtk):
     
         fwN = self.fractional_flow(Swk[-1])
+        # fwN = self._fractional_flow(Swk[-1])
         cost = -qtk*((1-fwN)*self.ro - self.rwp*fwN - ppf_approx(qtk))
         
         return cost
@@ -201,7 +233,8 @@ class BuckleyLeverette(object):
         
 def casadi_roll_left(arr):
     # arr is a CasADi MX or SX vector
-    return ca.vertcat(arr[1:], arr[0])
+    # return ca.vertcat(arr[1:], arr[0])
+    return ca.vertcat(arr[-1], arr[:-1])
 
 def casadi_clip(arr, min_val, max_val):
     return ca.fmin(ca.fmax(arr, min_val), max_val)
@@ -212,5 +245,8 @@ def casadi_clip(arr, min_val, max_val):
 # def ppf_approx(u, alpha=0.15): # polynomial approximation of the energy price function due to water injection by pumps
 #     return (3.15 - (- 3.1 * u**3 - 0.4 * u**2 + 1.5 * u))*alpha
 
-def ppf_approx(u, alpha=0.025): # polynomial approximation of the energy price function due to water injection by pumps
+# def ppf_approx(u, alpha=0.025): # polynomial approximation of the energy price function due to water injection by pumps
+#     return (3.15 - (- 3.1 * u**3 + 3.4 * u**2 + 1.5 * u))*alpha
+
+def ppf_approx(u, alpha=0.10): # polynomial approximation of the energy price function due to water injection by pumps
     return (3.15 - (- 3.1 * u**3 + 3.4 * u**2 + 1.5 * u))*alpha
