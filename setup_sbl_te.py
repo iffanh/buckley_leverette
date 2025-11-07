@@ -36,7 +36,7 @@ class BLParamsSmpcShort:
     Ne: int = 3 # number of perturbation
     # fractional flow parameters
     
-    aw: float = 100.0
+    aw: float = 20.0
     bw: np.ndarray = field(default_factory=lambda: np.array([5.84997699, 5.8895987 , 4.62704057])) 
 
     
@@ -65,7 +65,7 @@ class BLParamsTrue:
         
     Ne: int = 1 # number of perturbation
     # fractional flow parameters
-    aw: float = 100.0
+    aw: float = 20.0
     bw: np.ndarray = field(default_factory=lambda: np.array([5.0]))
     
 def setup_sbl_ocp(params_mpc: BLParamsSmpcShort, qmpc, qocp) -> Socp:

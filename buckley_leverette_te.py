@@ -32,34 +32,18 @@ class BuckleyLeverette(object):
         fw = krw / self.mu_w / (krw / self.mu_w + kro / self.mu_o)
         return fw
     
-    # def fractional_flow(self, Sw, a=20.0, b=5.0):
-    #     fw = 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*Sw))
-    #     return ca.vertcat(fw)
+    def _fractional_flow(self, Sw, a, b):
+        fw = 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*((Sw-0.2))))
+        return ca.vertcat(fw)
     
-    def _fractional_flow(self, a=20.0, b=5.0):
+    def fractional_flow(self, Sw, a, b):
         
-        x = ca.SX.sym("x")
-        f0 = ca.Function("f0", [x], [0])
-        f1 = ca.Function("f1", [x], [1])
-        f2 = ca.Function("f2", [x], [1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*(x)))])
-        f_cond = ca.Function.conditional('f_cond', [f0, f1], f2)
-        return f_cond
-        # if Sw < 0.2:
-        #     return 0.0
-        # elif Sw > 0.8:
-        #     return 1.0
-        # else:
-        #     return 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*(Sw)))
-    
-    # def fractional_flow(self, Sw, a=20.0, b=5.0):
-    #     f_cond = self._fractional_flow
+        fwmin = self._fractional_flow(0.2, a, b)
+        fwmax = self._fractional_flow(1.0, a, b)
         
-    #     fw = f_cond(Sw < 0.2)
+        fw = self._fractional_flow(Sw, a, b)
+        fw = (fw - fwmin)/(fwmax - fwmin)
         
-    #     return ca.vertcat(fw)
-    
-    def fractional_flow(self, Sw, a=20.0, b=5.0):
-        fw = 1/(1 + (self.mu_w/self.mu_o) * a*np.exp(-b*((Sw-0.2)/0.6)))
         return ca.vertcat(fw)
     
 
@@ -86,32 +70,6 @@ class BuckleyLeverette(object):
         Sw_end = casadi_clip(Sw_end, self.Swc, 1.0)
         return Sw_end
             
-    def simulate_w_plot(self, Sw, qt):
-        nsteps = int(self.total_time / self.dt)
-        for i in range(nsteps):
-            
-            Sw = self.simulate_at_k(Sw, qt[i])
-            
-            if i % (nsteps // 10) == 0:
-                plt.plot(self.x, Sw, label=f'Time={i*self.dt:.2f}')
-
-        plt.xlabel('Distance')
-        plt.ylabel('Water Saturation')
-        plt.title('Buckley-Leverette Waterflood')
-        plt.grid(True)
-        plt.legend()
-        plt.show()
-        
-    def cost_function(self, qt, Sw, gamma=0.99):
-        nsteps = int(self.total_time / self.dt)
-        list_npv = []
-        npv = 0.0
-        for i in range(nsteps):
-            
-            Sw = self.simulate_at_k(Sw, qt[i])
-            cashflow = self.stage_cost(Sw, qt[i])
-            npv += cashflow*gamma**(i*self.dt)
-            list_npv.append(npv)
             
         return list_npv
             
@@ -139,7 +97,7 @@ class BuckleyLeverette(object):
         gamma = 0.99
         dt = 0.03
         for i in range(itk):
-            cost += self._stage_cost(Sw, qt0[i])*(gamma**(i*dt) )
+            cost += self._stage_cost(Sw, qt0[i], a, b)*(gamma**(i*dt) )
             # cost += self._stage_cost(Sw, qt0[i])*(1.0**(i) )
             Sw = self.simulate_at_k(Sw, qt0[i], a, b) # we use qtk[i] as the control input from time 0 to itk-1
             # cost += self._stage_cost(Sw, qt0[i])*(0.99**(i) )
@@ -147,7 +105,7 @@ class BuckleyLeverette(object):
             
         for i in range(N_mpc):
             if itk + i < Nt:
-                cost += self._stage_cost(Sw, qtk[i])*(gamma**((i+itk)*dt))
+                cost += self._stage_cost(Sw, qtk[i], a, b)*(gamma**((i+itk)*dt))
                 # cost += self._stage_cost(Sw, qtk[i])*(1.0**(i+itk))
                 Sw = self.simulate_at_k(Sw, qtk[i], a, b) # we use qtk[i] as the control input from time itk to itk+N-1
                 # cost += self._stage_cost(Sw, qtk[i])*(0.99**(i+itk))
@@ -155,7 +113,7 @@ class BuckleyLeverette(object):
                 
         for i in range(Nt - (itk + N_mpc)):
             if itk + N_mpc + i < Nt:
-                cost += self._stage_cost(Sw, qocp[i])*(gamma**((i+itk+N_mpc)*dt))
+                cost += self._stage_cost(Sw, qocp[i], a, b)*(gamma**((i+itk+N_mpc)*dt))
                 # cost += self._stage_cost(Sw, qocp[i])*(1.0**(i+itk+N_mpc))
                 Sw = self.simulate_at_k(Sw, qocp[i], a, b) # we use qocp[i] as the control input from time itk+N to total_time
                 q_seq.append(qocp[i])
@@ -189,7 +147,7 @@ class BuckleyLeverette(object):
         
         dt = 0.03
         for i in range(itk):
-            cost += self._stage_cost(Sw, qt0[i])*(gamma**(i*dt) )
+            cost += self._stage_cost(Sw, qt0[i], a, b)*(gamma**(i*dt) )
             # cost += self._stage_cost(Sw, qt0[i])*(1.0**(i) )
             Sw = self.simulate_at_k(Sw, qt0[i], a, b) # we use qtk[i] as the control input from time 0 to itk-1
             # cost += self._stage_cost(Sw, qt0[i])*(0.99**(i) )
@@ -197,7 +155,7 @@ class BuckleyLeverette(object):
             
         for i in range(N_mpc):
             if itk + i < Nt:
-                cost += self._stage_cost(Sw, qtk[i])*(gamma**((i+itk)*dt))
+                cost += self._stage_cost(Sw, qtk[i], a, b)*(gamma**((i+itk)*dt))
                 # cost += self._stage_cost(Sw, qtk[i])*(1.0**(i+itk))
                 Sw = self.simulate_at_k(Sw, qtk[i], a, b) # we use qtk[i] as the control input from time itk to itk+N-1
                 # cost += self._stage_cost(Sw, qtk[i])*(0.99**(i+itk))
@@ -214,10 +172,9 @@ class BuckleyLeverette(object):
                 
         return cost
     
-    def _stage_cost(self, Swk, qtk):
+    def _stage_cost(self, Swk, qtk, a, b):
     
-        fwN = self.fractional_flow(Swk[-1])
-        # fwN = self._fractional_flow(Swk[-1])
+        fwN = self.fractional_flow(Swk[-1], a, b)
         cost = -qtk*((1-fwN)*self.ro - self.rwp*fwN - ppf_approx(qtk))
         
         return cost
