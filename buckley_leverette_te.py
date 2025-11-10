@@ -118,7 +118,7 @@ class BuckleyLeverette(object):
                 Sw = self.simulate_at_k(Sw, qocp[i], a, b) # we use qocp[i] as the control input from time itk+N to total_time
                 q_seq.append(qocp[i])
         
-        print(f"Control sequence used in cost calculation: {q_seq}")
+        # print(f"Control sequence used in cost calculation: {q_seq}")
                 
         return cost
     
@@ -168,7 +168,7 @@ class BuckleyLeverette(object):
         #         Sw = self.simulate_at_k(Sw, qocp[i], a, b) # we use qocp[i] as the control input from time itk+N to total_time
         #         q_seq.append(qocp[i])
         
-        print(f"Control sequence used in cost calculation: {q_seq}")
+        # print(f"Control sequence used in cost calculation: {q_seq}")
                 
         return cost
     
